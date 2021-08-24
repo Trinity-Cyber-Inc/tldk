@@ -300,7 +300,7 @@ tcp_fill_mbuf(struct rte_mbuf *m, const struct tle_tcp_stream *s,
  */
 static inline void
 tcp_update_mbuf(struct rte_mbuf *m, uint32_t type, const struct tcb *tcb,
-	uint32_t seq, uint32_t pid)
+	uint32_t seq, uint32_t pid, bool last_seg)
 {
 	struct rte_tcp_hdr *l4h;
 	uint32_t len;
@@ -310,6 +310,14 @@ tcp_update_mbuf(struct rte_mbuf *m, uint32_t type, const struct tcb *tcb,
 
 	l4h->sent_seq = rte_cpu_to_be_32(seq);
 	l4h->recv_ack = rte_cpu_to_be_32(tcb->rcv.nxt);
+
+	/*
+	 * function comments say this should only be used for data
+	 * packets so we should be safe setting PSH here...
+	 */
+	if (last_seg) {
+	  l4h->tcp_flags |= TCP_FLAG_PSH;
+	}
 
 	if (tcb->so.ts.raw != 0)
 		fill_tms_opts(l4h + 1, tcb->snd.ts, tcb->rcv.ts);
@@ -382,12 +390,13 @@ tx_data_pkts(struct tle_tcp_stream *s, struct rte_mbuf *const m[], uint32_t num)
 
 static inline uint32_t
 tx_data_bulk(struct tle_tcp_stream *s, union seqlen *sl, struct rte_mbuf *mi[],
-	uint32_t num)
+	uint32_t num, bool last_seg)
 {
 	uint32_t fail, i, k, n, mss, pid, plen, sz, tn, type;
 	struct tle_dev *dev;
 	struct rte_mbuf *mb;
 	struct rte_mbuf *mo[MAX_PKT_BURST + TCP_MAX_PKT_SEG];
+	bool _last_seg;
 
 	mss = s->tcb.snd.mss;
 	type = s->s.type;
@@ -398,17 +407,23 @@ tx_data_bulk(struct tle_tcp_stream *s, union seqlen *sl, struct rte_mbuf *mi[],
 	k = 0;
 	tn = 0;
 	fail = 0;
+	_last_seg = false;
+
 	for (i = 0; i != num && sl->len != 0 && fail == 0; i++) {
 
 		mb = mi[i];
 		sz = RTE_MIN(sl->len, mss);
 		plen = PKT_L4_PLEN(mb);
 
+		if (i == (num - 1) && last_seg) {
+			_last_seg = true;
+		}
+
 		/*fast path, no need to use indirect mbufs. */
 		if (plen <= sz) {
 
 			/* update pkt TCP header */
-			tcp_update_mbuf(mb, type, &s->tcb, sl->seq, pid + i);
+			tcp_update_mbuf(mb, type, &s->tcb, sl->seq, pid + i, _last_seg);
 
 			/* keep mbuf till ACK is received. */
 			rte_pktmbuf_refcnt_update(mb, 1);
@@ -456,11 +471,13 @@ tx_nxt_data(struct tle_tcp_stream *s, uint32_t tms)
 	uint32_t n, num, tn, wnd;
 	struct rte_mbuf **mi;
 	union seqlen sl;
+	bool last_seg;
 
 	tn = 0;
 	wnd = s->tcb.snd.wnd - (uint32_t)(s->tcb.snd.nxt - s->tcb.snd.una);
 	sl.seq = s->tcb.snd.nxt;
 	sl.len = RTE_MIN(wnd, s->tcb.snd.cwnd);
+	last_seg = false;
 
 	if (sl.len == 0)
 		return tn;
@@ -476,8 +493,15 @@ tx_nxt_data(struct tle_tcp_stream *s, uint32_t tms)
 		if (num == 0)
 			break;
 
+		/* check if this set of packets would be the last set */
+		struct rte_ring *r;
+		r = s->tx.q;
+		if (r->prod.head == (r->cons.head + num)) {
+			last_seg = true;
+		}
+
 		/* queue data packets for TX */
-		n = tx_data_bulk(s, &sl, mi, num);
+		n = tx_data_bulk(s, &sl, mi, num, last_seg);
 		tn += n;
 
 		/* update consumer head */
