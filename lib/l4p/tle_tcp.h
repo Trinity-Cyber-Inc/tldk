@@ -287,6 +287,19 @@ int tle_tcp_stream_get_state(const struct tle_stream *ts,
 int64_t tle_tcp_stream_rxq_size(const struct tle_stream *ts);
 
 /**
+ * Get current TCP stream TX queue size
+ * @param ts
+ *   Stream to retrieve state information from.
+ * @return
+ *   On success, the value will be >= 0 and can safely be stored
+ *   in an uint32_t. This value will be the TX queue size of the
+ *   stream.
+ *   On error, the value will be < 0 and be one of the following:
+ *   - EINVAL - invalid parameter passed to function
+ */
+int64_t tle_tcp_stream_txq_size(const struct tle_stream *ts);
+
+/**
  * create a new stream within given TCP context.
  * Stream is put into ESTABLISHED state stragithway.
  * Connection state is recreated based on provided information.

@@ -869,3 +869,15 @@ tle_tcp_stream_rxq_size(const struct tle_stream * ts)
 
 	return rte_ring_count(s->rx.q);
 }
+
+int64_t
+tle_tcp_stream_txq_size(const struct tle_stream * ts)
+{
+	struct tle_tcp_stream *s;
+
+	s = TCP_STREAM(ts);
+	if (ts == NULL || s->s.type >= TLE_VNUM)
+		return -EINVAL;
+
+	return rte_ring_count(s->tx.q);
+}
