@@ -29,6 +29,8 @@ struct tle_udp_stream_param {
 	struct sockaddr_storage local_addr;  /**< stream local address. */
 	struct sockaddr_storage remote_addr; /**< stream remote address. */
 
+	uint64_t udata; /**< user data to be associated with the stream. */
+
 	/* _cb and _ev are mutually exclusive */
 	struct tle_event *recv_ev;          /**< recv event to use.  */
 	struct tle_stream_cb recv_cb;   /**< recv callback to use. */
@@ -52,6 +54,23 @@ struct tle_udp_stream_param {
  */
 struct tle_stream *
 tle_udp_stream_open(struct tle_ctx *ctx,
+	const struct tle_udp_stream_param *prm);
+
+/**
+ * establish stream within given UDP context skipping the "bind".
+ * @param ctx
+ *   UDP context to create new stream within.
+ * @param prm
+ *   Parameters used to establish the stream.
+ * @return
+ *   Pointer to UDP stream structure that can be used in future UDP API calls,
+ *   or NULL on error, with error code set in rte_errno.
+ *   Possible rte_errno errors include:
+ *   - EINVAL - invalid parameter passed to function
+ *   - ENOFILE - max limit of open streams reached for that context
+ */
+struct tle_stream *
+tle_udp_stream_establish(struct tle_ctx *ctx,
 	const struct tle_udp_stream_param *prm);
 
 /**
@@ -106,6 +125,37 @@ tle_udp_stream_get_param(const struct tle_stream *s,
  *   number of packets delivered to the UDP streams.
  */
 uint16_t tle_udp_rx_bulk(struct tle_dev *dev, struct rte_mbuf *pkt[],
+	struct rte_mbuf *rp[], int32_t rc[], uint16_t num);
+
+/**
+ * Take input mbufs and distribute them directly to a UDP stream.
+ * expects that for each input packet:
+ *	- l2_len, l3_len, l4_len are setup correctly
+ *	- (packet_type & (RTE_PTYPE_L3_IPV4 | RTE_PTYPE_L3_IPV6)) != 0,
+ *	- (packet_type & RTE_PTYPE_L4_UDP) != 0,
+ * During delivery L3/L4 checksums will be verified
+ * (either relies on HW offload or in SW).
+ * This function is not multi-thread safe.
+ * @param us
+ *   UDP stream given packets belong to.
+ *   Note that it is caller's repsonsibility to make sure that input packets
+ *   belong to given stream.
+ * @param pkt
+ *   The burst of input packets that need to be processed.
+ * @param rp
+ *   The array that will contain pointers of unprocessed packets at return.
+ *   Should contain at least *num* elements.
+ * @param rc
+ *   The array that will contain error code for corresponding rp[] entry:
+ *   - ENOENT - no open stream matching this packet.
+ *   - ENOBUFS - receive buffer of the destination stream is full.
+ *   Should contain at least *num* elements.
+ * @param num
+ *   Number of elements in the *pkt* input array.
+ * @return
+ *   number of packets delivered to the UDP stream.
+ */
+uint16_t tle_udp_stream_rx_bulk(struct tle_stream *us, struct rte_mbuf *pkt[],
 	struct rte_mbuf *rp[], int32_t rc[], uint16_t num);
 
 /**

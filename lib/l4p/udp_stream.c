@@ -276,6 +276,78 @@ tle_udp_stream_open(struct tle_ctx *ctx,
 	return &s->s;
 }
 
+	struct tle_stream *
+tle_udp_stream_establish(struct tle_ctx *ctx,
+		const struct tle_udp_stream_param *prm)
+{
+	struct tle_udp_stream *s;
+
+	if (ctx == NULL || prm == NULL || check_stream_prm(ctx, prm) != 0) {
+		rte_errno = EINVAL;
+		return NULL;
+	}
+
+	s = (struct tle_udp_stream *)get_stream(ctx);
+	if (s == NULL)	{
+		rte_errno = ENFILE;
+		return NULL;
+
+		/* some TX still pending for that stream. */
+	} else if (UDP_STREAM_TX_PENDING(s)) {
+		put_stream(ctx, &s->s, 0);
+		rte_errno = EAGAIN;
+		return NULL;
+	}
+
+	/* copy input parameters. */
+	s->prm = *prm;
+
+	/* setup src and dst L3 addresses/L4 port. */
+	if (prm->local_addr.ss_family == AF_INET) {
+		s->s.type = TLE_V4;
+		s->s.ipv4.addr.src = ((const struct sockaddr_in *)&prm->remote_addr)->sin_addr.s_addr;
+		s->s.ipv4.mask.src = INADDR_NONE;
+		s->s.ipv4.addr.dst = ((const struct sockaddr_in *)&prm->local_addr)->sin_addr.s_addr;
+		s->s.ipv4.mask.dst = INADDR_NONE;
+
+		s->s.port.src = ((const struct sockaddr_in *)&prm->remote_addr)->sin_port;
+		s->s.pmsk.src = UINT16_MAX;
+		s->s.port.dst = ((const struct sockaddr_in *)&prm->local_addr)->sin_port;
+		s->s.pmsk.dst = UINT16_MAX;
+	} else if (prm->local_addr.ss_family == AF_INET6) {
+		s->s.type = TLE_V6;
+		const struct in6_addr *pm;
+		pm = &tle_ipv6_none;
+		memcpy(&s->s.ipv6.addr.src,
+			&((const struct sockaddr_in6 *)&prm->remote_addr)->sin6_addr,
+			sizeof(s->s.ipv6.addr.src));
+		memcpy(&s->s.ipv6.mask.src, pm, sizeof(s->s.ipv6.mask.src));
+		memcpy(&s->s.ipv6.addr.dst,
+			&((const struct sockaddr_in6 *)&prm->local_addr)->sin6_addr,
+			sizeof(s->s.ipv6.addr.dst));
+		memcpy(&s->s.ipv6.mask.dst, pm, sizeof(s->s.ipv6.mask.dst));
+
+		s->s.port.src = ((const struct sockaddr_in6 *)&prm->remote_addr)->sin6_port;
+		s->s.pmsk.src = UINT16_MAX;
+		s->s.port.dst = ((const struct sockaddr_in6 *)&prm->local_addr)->sin6_port;
+		s->s.pmsk.dst = UINT16_MAX;
+	}
+
+	/* setup stream notification menchanism */
+	s->rx.ev = prm->recv_ev;
+	s->rx.cb = prm->recv_cb;
+	s->tx.ev = prm->send_ev;
+	s->tx.cb = prm->send_cb;
+	s->s.udata = prm->udata;
+
+	/* mark stream as avaialbe for RX/TX */
+	if (s->tx.ev != NULL)
+		tle_event_raise(s->tx.ev);
+	stream_up(s);
+
+	return &s->s;
+}
+
 int
 tle_udp_stream_close(struct tle_stream *us)
 {

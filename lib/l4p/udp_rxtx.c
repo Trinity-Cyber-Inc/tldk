@@ -108,6 +108,33 @@ rx_stream(struct tle_udp_stream *s, void *mb[], struct rte_mbuf *rp[],
 	return r;
 }
 
+uint16_t tle_udp_stream_rx_bulk(struct tle_stream *us, struct rte_mbuf *pkt[],
+		struct rte_mbuf *rp[], int32_t rc[], uint16_t num)
+{
+	struct tle_udp_stream *s;
+	uint32_t i, n;
+
+	s = UDP_STREAM(us);
+	if (s == NULL) {
+		for (i = 0; i != num; i++) {
+			rc[i] = ENOENT;
+			rp[i] = pkt[i];
+		}
+		return 0;
+	}
+
+	n = rx_stream(s, (void*)pkt, rp, rc, num);
+
+	if (s->rx.ev != NULL)
+		tle_event_raise(s->rx.ev);
+	// unclear what purpose this serves since we arent acquiring a stream
+	// if we do call this we shift negative since we arent acquiring the stream and then it locks up the free call
+	// rwl_release(&s->rx.use);
+
+	return n;
+
+}
+
 static inline uint16_t
 rx_stream6(struct tle_udp_stream *s, struct rte_mbuf *pkt[],
 	union ipv6_addrs *addr[], union l4_ports port[],
