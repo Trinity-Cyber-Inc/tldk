@@ -99,6 +99,19 @@ tle_udp_stream_get_param(const struct tle_stream *s,
 	struct tle_udp_stream_param *prm);
 
 /**
+ * Get current UDP stream RX queue size
+ * @param us
+ *   Stream to retrieve state information from.
+ * @return
+ *   On success, the value will be >= 0 and can safely be stored
+ *   in an uint32_t. This value will be the RX queue size of the
+ *   stream.
+ *   On error, the value will be < 0 and be one of the following:
+ *   - EINVAL - invalid parameter passed to function
+ */
+int64_t tle_udp_stream_rxq_size(const struct tle_stream *us);
+
+/**
  * Take input mbufs and distribute them to open UDP streams.
  * expects that for each input packet:
  *	- l2_len, l3_len, l4_len are setup correctly

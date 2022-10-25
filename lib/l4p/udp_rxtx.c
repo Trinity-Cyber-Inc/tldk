@@ -132,7 +132,6 @@ uint16_t tle_udp_stream_rx_bulk(struct tle_stream *us, struct rte_mbuf *pkt[],
 	// rwl_release(&s->rx.use);
 
 	return n;
-
 }
 
 static inline uint16_t

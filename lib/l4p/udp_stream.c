@@ -276,7 +276,7 @@ tle_udp_stream_open(struct tle_ctx *ctx,
 	return &s->s;
 }
 
-	struct tle_stream *
+struct tle_stream *
 tle_udp_stream_establish(struct tle_ctx *ctx,
 		const struct tle_udp_stream_param *prm)
 {
@@ -416,4 +416,16 @@ tle_udp_stream_get_param(const struct tle_stream *us,
 	}
 
 	return 0;
+}
+
+
+int64_t
+tle_udp_stream_rxq_size(const struct tle_stream * us)
+{
+	struct tle_udp_stream *s;
+	s = UDP_STREAM(us);
+	if (us == NULL || s->s.type >= TLE_VNUM)
+		return -EINVAL;
+
+	return rte_ring_count(s->rx.q);
 }
