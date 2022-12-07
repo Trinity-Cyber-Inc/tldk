@@ -442,7 +442,7 @@ reassemble(struct rte_mbuf *m, struct netbe_lcore *lc, uint64_t tms,
 
 	tbl = lc->ftbl;
 	dr = &lc->death_row;
-	l3cs = lc->prtq[port].port.rx_offload & DEV_RX_OFFLOAD_IPV4_CKSUM;
+	l3cs = lc->prtq[port].port.rx_offload & RTE_ETH_RX_OFFLOAD_IPV4_CKSUM;
 
 	if (RTE_ETH_IS_IPV4_HDR(m->packet_type)) {
 

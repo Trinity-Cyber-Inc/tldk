@@ -1,4 +1,4 @@
 [wrap-git]
-url = https://dpdk.org/git/dpdk
-revision = v21.11
-patch_directory = dpdk
+url = https://dpdk.org/git/dpdk-stable/
+revision = v22.11.1
+#patch_directory = dpdk

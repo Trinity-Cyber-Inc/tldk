@@ -22,8 +22,8 @@ extern "C" {
 
 #include <rte_version.h>
 
-#if RTE_VERSION < RTE_VERSION_NUM(21, 11, 0, 0)
-#error "TLDK requires DPDK version 21.11 or newer is required"
+#if RTE_VERSION < RTE_VERSION_NUM(22, 11, 1, 0)
+#error "TLDK requires DPDK version 22.11.1 or newer is required"
 #endif
 
 static inline uint32_t

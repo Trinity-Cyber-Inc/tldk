@@ -33,8 +33,8 @@
 
 #define	FIRST_PORT	0x8000
 
-#define RX_CSUM_OFFLOAD	(DEV_RX_OFFLOAD_IPV4_CKSUM | DEV_RX_OFFLOAD_UDP_CKSUM)
-#define TX_CSUM_OFFLOAD	(DEV_TX_OFFLOAD_IPV4_CKSUM | DEV_TX_OFFLOAD_UDP_CKSUM)
+#define RX_CSUM_OFFLOAD	(RTE_ETH_RX_OFFLOAD_IPV4_CKSUM | RTE_ETH_RX_OFFLOAD_UDP_CKSUM)
+#define TX_CSUM_OFFLOAD	(RTE_ETH_TX_OFFLOAD_IPV4_CKSUM | RTE_ETH_TX_OFFLOAD_UDP_CKSUM)
 
 RTE_DEFINE_PER_LCORE(struct netbe_lcore *, _be);
 RTE_DEFINE_PER_LCORE(struct netfe_lcore *, _fe);
@@ -57,7 +57,7 @@ RTE_DEFINE_PER_LCORE(struct netfe_lcore *, _fe);
  * Size of the rte_eth_rss_reta_entry64 array to update through
  * rte_eth_dev_rss_reta_update.
  */
-#define RSS_RETA_CONF_ARRAY_SIZE (ETH_RSS_RETA_SIZE_512/RTE_RETA_GROUP_SIZE)
+#define RSS_RETA_CONF_ARRAY_SIZE (RTE_ETH_RSS_RETA_SIZE_512/RTE_ETH_RETA_GROUP_SIZE)
 
 static volatile int force_quit;
 
