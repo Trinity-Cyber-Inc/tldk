@@ -247,12 +247,12 @@ stream_close_prolog(struct tle_ctx *ctx, struct tle_tcp_stream *s, uint16_t nop)
 	if ((uop & nop) == nop)
 		return -EDEADLK;
 
+	/* mark stream as unavaialbe for RX/TX. */
+	tcp_stream_down(s);
+
 	/* record that *nop* was already invoked */
 	if (rte_atomic16_cmpset(&s->tcb.uop, uop, uop | nop) == 0)
 		return -EDEADLK;
-
-	/* mark stream as unavaialbe for RX/TX. */
-	tcp_stream_down(s);
 
 	/* reset events/callbacks */
 	s->rx.ev = NULL;
