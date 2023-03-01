@@ -470,12 +470,33 @@ static inline uint32_t
 tx_nxt_data(struct tle_tcp_stream *s, uint32_t tms)
 {
 	uint32_t n, num, tn, wnd;
+	int64_t swnd;
 	struct rte_mbuf **mi;
 	union seqlen sl;
 	union seqlen sl_una;
 
 	tn = 0;
-	wnd = s->tcb.snd.wnd - (uint32_t)(s->tcb.snd.nxt - s->tcb.snd.una);
+	// There is a case here where in flight data is larger than snd.wnd
+	// That seems like a bug, but it has to do with window scaling factors.
+	//
+	// If the receive window gets small enough relative to the in flight data
+	// and the recipient has to pick between sending a value that is too large or too small,
+	// it may tend towards a too small value. This could leave snd.wnd as reported
+	// from the receiver smaller than the in flight data.
+	//
+	// E.g. after an `ack` is received, there are 50,000 bytes in flight
+	// and the recipient has 50,000 bytes of receive buffer space.
+	// The window multiplier is 256, so the receiver can't report exactly 50,000
+	// bytes of buffer. It can report either 49,920 or 50,176. It chooses 49,920.
+	//
+	// Now there are 50,000 bytes in flight but snd.wnd is 49,920 and subtraction
+	// produces a negative (or underflowed an unsigned type to large positive) number.
+	//
+	// We need a saturating truncate, not an underflowing truncate,
+	// so use a signed value with max.
+
+	swnd = (int64_t)s->tcb.snd.wnd - (int64_t)(s->tcb.snd.nxt - s->tcb.snd.una);
+	wnd = (uint32_t)RTE_MAX(0, swnd);
 	sl.seq = s->tcb.snd.nxt;
 	sl.len = RTE_MIN(wnd, s->tcb.snd.cwnd);
 
