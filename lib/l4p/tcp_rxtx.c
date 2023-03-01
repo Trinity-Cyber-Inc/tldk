@@ -820,9 +820,8 @@ rx_check_seq(struct tcb *tcb, uint32_t seq, uint32_t len,
 		if (tcp_seq_lt(ts.val, tcb->rcv.ts))
 			return -ERANGE;
 
-		/* RFC 1323 4.2.1 R3 */
-		if (tcp_seq_leq(seq, tcb->snd.ack) &&
-				tcp_seq_lt(tcb->snd.ack, seq + len))
+		/* RFC 1323 4.2.1 R3, modified by RFC 7323 5.3 R3*/
+		if (tcp_seq_leq(seq, tcb->snd.ack))
 			tcb->rcv.ts = ts.val;
 	}
 
