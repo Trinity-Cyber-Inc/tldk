@@ -2439,13 +2439,16 @@ tle_tcp_stream_readv(struct tle_stream *ts, const struct iovec *iov,
 	int iovcnt)
 {
 	int32_t i;
-	uint32_t mn, n, tn;
+	uint32_t mn, n, tn, iwnd, awnd, tms;
 	size_t sz;
 	struct tle_tcp_stream *s;
 	struct iovec iv;
 	struct rxq_objs mo[2];
 
 	s = TCP_STREAM(ts);
+
+	// Starting receive window, scaled
+	iwnd = s->tcb.rcv.wnd >> s->tcb.rcv.wscale;
 
 	/* get group of packets */
 	mn = tcp_rxq_get_objs(s, mo);
@@ -2482,6 +2485,30 @@ tle_tcp_stream_readv(struct tle_stream *ts, const struct iovec *iov,
 	}
 
 	tcp_rxq_consume(s, tn);
+	// If the window went from 0 to non-0, we need to send an update.
+    //
+	// There is a slight change of a race that could double-ack the same data:
+	// 1. The back end may have enqueued packets to the RX queue putting the window at 0
+	// 2. We read data here on the front end opening the window
+	// 3. The back end queues up an ack to send, because it got packets
+	// 4. We queue up an ack to send, because we opened the window up
+	//
+	// 3 and 4 can happen in either order, both of those acks are exactly the same.
+	// so, they look like dup acks and trigger fast retransmit breaking the flow.
+    //
+    // There is insufficient locking to prevent this, but it's also not overly harmful.
+    // In the worst case, 2 acks are sent instead of 1. This is still not a fast
+    // retransmit since that is supposed to be 3 retransmissions (4 acks) in a row. Some
+    // systems mistakenly treat 3 acks in a row as a fast retransmit, but this is still
+    // just 2.
+    //
+    // Alternative impelmentations to set flags and send the ack from the back end are
+    // possible, but significantly more complex for limited value.
+	awnd = s->tcb.rcv.wnd >> s->tcb.rcv.wscale;
+	if ((iwnd == 0) && (awnd != 0)) {
+		tms = tcp_stream_adjust_tms(s, tcp_get_tms(s->s.ctx->cycles_ms_shift));
+		send_ack(s, tms, TCP_FLAG_ACK);
+	}
 
 	/*
 	 * if we still have packets to read,
