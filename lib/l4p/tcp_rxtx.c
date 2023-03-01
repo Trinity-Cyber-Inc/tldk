@@ -398,7 +398,7 @@ tx_data_bulk(struct tle_tcp_stream *s, union seqlen *sl, struct rte_mbuf *mi[],
 {
 	uint32_t fail, i, k, n, mss, pid, plen, sz, tn, type;
 	struct tle_dev *dev;
-	struct rte_mbuf *mb;
+	struct rte_mbuf *mb, *nmb;
 	struct rte_mbuf *mo[MAX_PKT_BURST + TCP_MAX_PKT_SEG];
 	uint8_t tcp_flags;
 
@@ -425,11 +425,21 @@ tx_data_bulk(struct tle_tcp_stream *s, union seqlen *sl, struct rte_mbuf *mi[],
 			if (i == (num - 1))
 				tcp_flags |= TCP_FLAG_PSH;
 
+			// If we are sending an already in flight frame, make a copy and update the copy.
+			if (rte_mbuf_refcnt_read(mb) > 1) {
+				nmb = rte_pktmbuf_copy(mb, mb->pool, 0, UINT32_MAX);
+				// What do we do if allocation fails?
+				RTE_VERIFY(nmb != NULL);
+				mb = nmb;
+			}
+			// Only keep the original mbuf, not a copy.
+			else {
+				/* keep mbuf till ACK is received. */
+				rte_pktmbuf_refcnt_update(mb, 1);
+			}
 			/* update pkt TCP header */
 			tcp_update_mbuf(mb, type, s, sl->seq, pid + i, tcp_flags);
 
-			/* keep mbuf till ACK is received. */
-			rte_pktmbuf_refcnt_update(mb, 1);
 			sl->len -= plen;
 			sl->seq += plen;
 			mo[k++] = mb;
