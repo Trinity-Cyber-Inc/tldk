@@ -13,7 +13,7 @@ libraries = [
         'l4p',
 ]
 
-default_cflags = ['-march=native', '-mno-avx512f']
+default_cflags = ['-march=native', '-mno-avx512f', '-fno-strict-aliasing']
 if cc.has_argument('-Wno-format-truncation')
     default_cflags += '-Wno-format-truncation'
 endif
