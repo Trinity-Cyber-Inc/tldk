@@ -206,15 +206,16 @@ tcp_stream_adjust_tms(const struct tle_tcp_stream *s, uint32_t tms)
 }
 
 static inline void
-fill_tcph(struct rte_tcp_hdr *l4h, const struct tcb *tcb, union l4_ports port,
+fill_tcph(struct rte_tcp_hdr *l4h, const struct tle_tcp_stream *s, union l4_ports port,
 	uint32_t seq, uint8_t hlen, uint8_t flags)
 {
+	const struct tcb *tcb = &s->tcb;
 	uint16_t wnd;
 
 	l4h->src_port = port.dst;
 	l4h->dst_port = port.src;
 
-	wnd = calc_pkt_rx_wnd(tcb, flags);
+	wnd = calc_pkt_rx_wnd(s, flags);
 
 	/* ??? use sse shuffle to hton all remaining 16 bytes at once. ??? */
 	l4h->sent_seq = rte_cpu_to_be_32(seq);
@@ -261,7 +262,7 @@ tcp_fill_mbuf(struct rte_mbuf *m, const struct tle_tcp_stream *s,
 
 	/* setup TCP header & options */
 	l4h = (struct rte_tcp_hdr *)(l2h + len);
-	fill_tcph(l4h, &s->tcb, port, seq, l4, flags);
+	fill_tcph(l4h, s, port, seq, l4, flags);
 
 	/* setup mbuf TX offload related fields. */
 	m->tx_offload = _mbuf_tx_offload(dst->l2_len, dst->l3_len, l4, 0, 0, 0);
@@ -303,9 +304,10 @@ tcp_fill_mbuf(struct rte_mbuf *m, const struct tle_tcp_stream *s,
  *  - if no HW cksum offloads are enabled, calculates TCP checksum.
  */
 static inline void
-tcp_update_mbuf(struct rte_mbuf *m, uint32_t type, const struct tcb *tcb,
+tcp_update_mbuf(struct rte_mbuf *m, uint32_t type, const struct tle_tcp_stream *s,
 	uint32_t seq, uint32_t pid, uint8_t tcp_flags)
 {
+	const struct tcb *tcb = &s->tcb;
 	struct rte_tcp_hdr *l4h;
 	uint32_t len;
 	uint16_t wnd;
@@ -313,7 +315,7 @@ tcp_update_mbuf(struct rte_mbuf *m, uint32_t type, const struct tcb *tcb,
 	len = m->l2_len + m->l3_len;
 	l4h = rte_pktmbuf_mtod_offset(m, struct rte_tcp_hdr *, len);
 
-	wnd = calc_pkt_rx_wnd(tcb, tcp_flags);
+	wnd = calc_pkt_rx_wnd(s, tcp_flags);
 
 	l4h->sent_seq = rte_cpu_to_be_32(seq);
 	l4h->recv_ack = rte_cpu_to_be_32(tcb->rcv.nxt);
@@ -424,7 +426,7 @@ tx_data_bulk(struct tle_tcp_stream *s, union seqlen *sl, struct rte_mbuf *mi[],
 				tcp_flags |= TCP_FLAG_PSH;
 
 			/* update pkt TCP header */
-			tcp_update_mbuf(mb, type, &s->tcb, sl->seq, pid + i, tcp_flags);
+			tcp_update_mbuf(mb, type, s, sl->seq, pid + i, tcp_flags);
 
 			/* keep mbuf till ACK is received. */
 			rte_pktmbuf_refcnt_update(mb, 1);
@@ -1463,7 +1465,7 @@ start_fast_retransmit(struct tle_tcp_stream *s)
 	/* RFC 5681 3.2.3 */
 	/**
 	 * We only want to retransmit the lost segment and
-	 * not retransmit everything so just set a falg for first
+	 * not retransmit everything so just set a flag for first
 	 */
 	tcb->snd.tx_ctrl_flags = TX_CTRL_FLAG_UNA_FIRST;
 	tcb->snd.cwnd = tcb->snd.ssthresh + 3 * tcb->snd.mss;
@@ -2448,7 +2450,10 @@ tle_tcp_stream_readv(struct tle_stream *ts, const struct iovec *iov,
 	s = TCP_STREAM(ts);
 
 	// Starting receive window, scaled
-	iwnd = s->tcb.rcv.wnd >> s->tcb.rcv.wscale;
+	iwnd = s->tcb.rcv.wnd;
+	if (s->s.ctx->prm.reserved_wnd <= iwnd)
+		iwnd -= s->s.ctx->prm.reserved_wnd;
+	iwnd >>= s->tcb.rcv.wscale;
 
 	/* get group of packets */
 	mn = tcp_rxq_get_objs(s, mo);

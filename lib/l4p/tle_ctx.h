@@ -122,6 +122,7 @@ struct tle_ctx_param {
 	uint32_t max_stream_sbufs; /**< max send mbufs per stream. */
 	uint32_t send_bulk_size;   /**< expected # of packets per send call. */
 	uint32_t window_mbuf_size; /**< mbuf data size used in wnd calc */
+	uint32_t reserved_wnd;     /**< multiple of window_mbuf_size bytes to reserve from advertised rx wnd */
 	uint32_t flags;            /**< specific flags */
 
 	int (*lookup4)(void *opaque, uint64_t stream_udata,
