@@ -217,7 +217,7 @@ tcp_stream_reset(struct tle_ctx *ctx, struct tle_tcp_stream *s)
 	 * if there still are pkts queued for TX,
 	 * then put this stream to the tail of free list.
 	 */
-	if (TCP_STREAM_TX_PENDING(s)) 
+	if (TCP_STREAM_TX_PENDING(s))
 		put_stream(ctx, &s->s, 0);
 	else {
 		s->s.type = TLE_VNUM;
@@ -282,7 +282,7 @@ tcp_stream_get(struct tle_ctx *ctx, uint32_t flag)
 	struct tcp_streams *ts;
 
 	ts = CTX_TCP_STREAMS(ctx);
-	
+
 	/* check TX pending list */
 	s = get_stream(ctx);
 	cs = TCP_STREAM(s);

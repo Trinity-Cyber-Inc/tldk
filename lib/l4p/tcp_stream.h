@@ -68,10 +68,10 @@ struct tcb {
 		uint16_t mss;
 		uint8_t  wscale;
 		uint8_t nb_retx; /* number of retransmission */
-    // end of 64 bit aligned in snd
+		// end of 64 bit aligned in snd
 		uint8_t nb_retm; /**< max number of retx attempts. */
 		uint8_t close_flags; /* tcp flags to send on close */
-    uint8_t tx_ctrl_flags; /**< what to TX next */
+		uint8_t tx_ctrl_flags; /**< what to TX next */
 	} snd;
 	struct tle_tcp_syn_opts so; /* initial syn options. */
 };

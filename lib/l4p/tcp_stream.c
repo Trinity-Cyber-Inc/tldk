@@ -298,7 +298,7 @@ tcp_init_streams(struct tle_ctx *ctx)
 			ctx->prm.socket_id);
 		ts->tmr = alloc_timers(ctx);
 		ts->mts = alloc_mts(ctx, szofs.size);
-	
+
 		if (ts->tsq == NULL || ts->tmr == NULL || ts->mts == NULL)
 			rc = -ENOMEM;
 
