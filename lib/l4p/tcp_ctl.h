@@ -117,8 +117,9 @@ calc_rcv_wnd_max(const struct tle_tcp_stream *s)
 
 /* calculate the value to put into a packet TCP header for window size */
 static inline uint16_t
-calc_pkt_rx_wnd(const struct tcb *tcb, uint8_t flags)
+calc_pkt_rx_wnd(const struct tle_tcp_stream *s, uint8_t flags)
 {
+	const struct tcb *tcb = &s->tcb;
 	uint32_t syn_capped_wnd;
 	uint32_t flag_checked_wnd;
 
@@ -126,6 +127,9 @@ calc_pkt_rx_wnd(const struct tcb *tcb, uint8_t flags)
 	flag_checked_wnd = (flags & TCP_FLAG_SYN) ? syn_capped_wnd : tcb->rcv.wnd;
 
 	assert((flag_checked_wnd >> tcb->rcv.wscale) <= UINT16_MAX);
+
+	if (s->s.ctx->prm.reserved_wnd <= flag_checked_wnd)
+		flag_checked_wnd -= s->s.ctx->prm.reserved_wnd;
 
 	return flag_checked_wnd >> tcb->rcv.wscale;
 }
