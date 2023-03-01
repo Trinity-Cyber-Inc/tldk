@@ -13,7 +13,7 @@ all_examples = [
         'l4fwd',
 ]
 
-default_cflags = ['-march=native', '-mno-avx512f', '-fPIC']
+default_cflags = ['-march=native', '-mno-avx512f', '-fno-strict-aliasing', '-fPIC']
 if cc.has_argument('-Wno-format-truncation')
     default_cflags += '-Wno-format-truncation'
 endif
