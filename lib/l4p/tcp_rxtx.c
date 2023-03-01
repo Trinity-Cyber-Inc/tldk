@@ -1441,7 +1441,7 @@ start_fast_retransmit(struct tle_tcp_stream *s)
 
 	/* RFC 5681 3.2.3 */
 	/**
-	 * We only want to retransmit the lost segment and 
+	 * We only want to retransmit the lost segment and
 	 * not retransmit everything so just set a falg for first
 	 */
 	tcb->snd.tx_ctrl_flags = TX_CTRL_FLAG_UNA_FIRST;
@@ -2698,7 +2698,7 @@ tle_tcp_stream_writev(struct tle_stream *ts, struct rte_mempool *mp,
 		}
 	}
 
-        if (k != 0) {
+	if (k != 0) {
 
 		/* notify BE about more data to send */
 		txs_enqueue(s->s.ctx, s);
