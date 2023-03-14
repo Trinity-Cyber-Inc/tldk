@@ -420,9 +420,8 @@ tx_data_bulk(struct tle_tcp_stream *s, union seqlen *sl, struct rte_mbuf *mi[],
 		/*fast path, no need to use indirect mbufs. */
 		if (plen <= sz) {
 
-			if (i == (num - 1)) {
+			if (i == (num - 1))
 				tcp_flags |= TCP_FLAG_PSH;
-			}
 
 			/* update pkt TCP header */
 			tcp_update_mbuf(mb, type, &s->tcb, sl->seq, pid + i, tcp_flags);
@@ -495,9 +494,8 @@ tx_nxt_data(struct tle_tcp_stream *s, uint32_t tms)
 			n = tx_data_bulk(s, &sl_una, mi, 1);
 			tn += n;
 			// of we enqueued the segment go back to normal processing
-			if (n == 1) {
+			if (n == 1)
 				s->tcb.snd.tx_ctrl_flags = TX_CTRL_FLAG_NORMAL;
-			}
 			// if we didn't enqueue, try again next time ??
 		}
 	}
@@ -2303,15 +2301,12 @@ tcb_establish(struct tle_tcp_stream *s, const struct tle_tcp_conn_info *ci)
 	tms = tcp_get_tms(s->s.ctx->cycles_ms_shift);
 
 	/* set a default MSS if it is unset (0) */
-	if ((ci->so.mss == 0) && (s->s.type == TLE_V4)) {
+	if ((ci->so.mss == 0) && (s->s.type == TLE_V4))
 		mss = calc_smss(TCP4_MIN_MSS, &s->tx.dst);
-	}
-	else if ((ci->so.mss == 0) && (s->s.type == TLE_V6)) {
+	else if ((ci->so.mss == 0) && (s->s.type == TLE_V6))
 		mss = calc_smss(TCP6_MIN_MSS, &s->tx.dst);
-	}
-	else {
+	else
 		mss = calc_smss(ci->so.mss, &s->tx.dst);
-	}
 
 	s->tcb.so = ci->so;
 	fill_tcb_snd(&s->tcb, ci->ack, ci->seq, mss,
